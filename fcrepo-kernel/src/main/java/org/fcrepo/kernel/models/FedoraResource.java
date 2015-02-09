@@ -16,7 +16,7 @@
 package org.fcrepo.kernel.models;
 
 import java.util.Date;
-import java.util.Iterator;
+import java.util.stream.Stream;
 
 import javax.jcr.Node;
 import javax.jcr.Property;
@@ -52,7 +52,7 @@ public interface FedoraResource {
      * Get the children of this resource
      * @return iterator
      */
-    Iterator<FedoraResource> getChildren();
+    Stream<FedoraResource> getChildren();
 
     /**
      * Get the container of this resource
