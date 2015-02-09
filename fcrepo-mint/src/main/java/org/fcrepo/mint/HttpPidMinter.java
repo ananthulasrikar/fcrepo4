@@ -173,7 +173,7 @@ public class HttpPidMinter implements PidMinter {
      */
     @Timed
     @Override
-    public String mintPid() {
+    public String get() {
         try {
             log.debug("mintPid()");
             final HttpResponse resp = client.execute( minterRequest() );

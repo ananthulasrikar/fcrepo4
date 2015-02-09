@@ -15,7 +15,6 @@
  */
 package org.fcrepo.http.commons.exceptionhandlers;
 
-import org.apache.commons.codec.binary.Base64;
 import org.fcrepo.kernel.exception.MalformedRdfException;
 
 import javax.ws.rs.core.Link;
@@ -23,6 +22,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
 
+import static java.util.Base64.getEncoder;
 import static javax.ws.rs.core.Response.Status.CONFLICT;
 import static javax.ws.rs.core.Response.status;
 import static org.fcrepo.kernel.RdfLexicon.CONSTRAINED_BY;
@@ -41,6 +41,6 @@ public class MalformedRdfExceptionMapper implements ExceptionMapper<MalformedRdf
     }
 
     private static String getConstraintUri(final MalformedRdfException e) {
-        return "data:text/plain;base64," + Base64.encodeBase64String(e.getMessage().getBytes());
+        return "data:text/plain;base64," + getEncoder().encodeToString(e.getMessage().getBytes());
     }
 }
