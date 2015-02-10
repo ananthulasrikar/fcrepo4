@@ -22,9 +22,11 @@ import static org.slf4j.LoggerFactory.getLogger;
 import java.util.Iterator;
 import java.util.stream.Stream;
 
+import javax.jcr.Node;
 import javax.jcr.Property;
 import javax.jcr.RepositoryException;
 
+import com.hp.hpl.jena.graph.Triple;
 import com.hp.hpl.jena.rdf.model.Resource;
 
 import org.fcrepo.kernel.models.FedoraResource;
@@ -41,25 +43,24 @@ import org.slf4j.Logger;
  */
 public class PropertiesRdfContext extends NodeRdfContext {
 
-    private final PropertyToTriple property2triple;
-
     private static final Logger LOGGER = getLogger(PropertiesRdfContext.class);
 
     /**
      * Default constructor.
      *
      * @param resource
-     * @throws RepositoryException
      */
 
     public PropertiesRdfContext(final FedoraResource resource,
-                                final IdentifierConverter<Resource, FedoraResource> idTranslator)
-        throws RepositoryException {
+                                final IdentifierConverter<Resource, FedoraResource> idTranslator) {
         super(resource, idTranslator);
-        this.property2triple = new PropertyToTriple(resource.getNode().getSession(), idTranslator);
-        LOGGER.trace("Creating triples for node: {}", resource());
-        final Iterator<Property> propertiesIterator = resource().getNode().getProperties();
+    }
+
+    @Override
+    public Stream<Triple> applyThrows(final Node node) throws RepositoryException {
+        LOGGER.trace("Creating triples for resource: {}", resource());
+        final Iterator<Property> propertiesIterator = node.getProperties();
         final Stream<Property> properties = fromIterator(propertiesIterator).filter(isInternalProperty.negate());
-        concat(properties.flatMap(property2triple));
+        return properties.flatMap(new PropertyToTriple(session(), translator()));
     }
 }

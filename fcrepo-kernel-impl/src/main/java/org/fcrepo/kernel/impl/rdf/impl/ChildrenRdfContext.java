@@ -24,9 +24,9 @@ import org.fcrepo.kernel.identifiers.IdentifierConverter;
 
 import org.slf4j.Logger;
 
-import javax.jcr.RepositoryException;
+import javax.jcr.Node;
+import java.util.stream.Stream;
 
-import java.util.function.Function;
 import static com.hp.hpl.jena.graph.Triple.create;
 import static org.fcrepo.kernel.RdfLexicon.CONTAINS;
 import static org.slf4j.LoggerFactory.getLogger;
@@ -45,25 +45,23 @@ public class ChildrenRdfContext extends NodeRdfContext {
      *
      * @param resource
      * @param idTranslator
-     * @throws javax.jcr.RepositoryException
      */
     public ChildrenRdfContext(final FedoraResource resource,
-            final IdentifierConverter<Resource, FedoraResource> idTranslator)
-            throws RepositoryException {
+            final IdentifierConverter<Resource, FedoraResource> idTranslator) {
         super(resource, idTranslator);
-
-        if (resource.getNode().hasNodes()) {
-            LOGGER.trace("Found children of this resource.");
-            concat(resource().getChildren().map(child2triples));
-        }
     }
 
-    private final Function<FedoraResource, Triple> child2triples = child -> {
-        final FedoraResource describedThing =
-                child instanceof NonRdfSourceDescription ? ((NonRdfSourceDescription) child).getDescribedResource()
-                        : child;
-        final com.hp.hpl.jena.graph.Node childSubject = translator().reverse().convert(describedThing).asNode();
-        LOGGER.trace("Creating triples for child node: {}", child);
-        return create(subject(), CONTAINS.asNode(), childSubject);
-    };
+    @Override
+    public Stream<Triple> applyThrows(final Node unused) {
+        return resource().getChildren().map(
+                child -> {
+                    final FedoraResource describedThing =
+                            child instanceof NonRdfSourceDescription ? ((NonRdfSourceDescription) child)
+                                    .getDescribedResource() : child;
+                    final com.hp.hpl.jena.graph.Node childSubject =
+                            translator().reverse().convert(describedThing).asNode();
+                    LOGGER.trace("Creating triples for child node: {}", child);
+                    return create(topic(), CONTAINS.asNode(), childSubject);
+                });
+    }
 }

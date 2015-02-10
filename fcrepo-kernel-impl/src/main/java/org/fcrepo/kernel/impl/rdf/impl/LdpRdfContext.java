@@ -17,17 +17,19 @@ package org.fcrepo.kernel.impl.rdf.impl;
 
 import static com.hp.hpl.jena.graph.Triple.create;
 import static com.hp.hpl.jena.vocabulary.RDF.type;
+import static java.util.stream.Stream.builder;
 import static org.fcrepo.kernel.FedoraJcrTypes.FEDORA_CONTAINER;
 import static org.fcrepo.kernel.RdfLexicon.BASIC_CONTAINER;
 import static org.fcrepo.kernel.RdfLexicon.CONTAINER;
 import static org.fcrepo.kernel.RdfLexicon.RDF_SOURCE;
-import static org.slf4j.LoggerFactory.getLogger;
+import java.util.stream.Stream;
 
+import javax.jcr.Node;
 import org.fcrepo.kernel.models.Container;
 import org.fcrepo.kernel.models.FedoraResource;
 import org.fcrepo.kernel.identifiers.IdentifierConverter;
-import org.slf4j.Logger;
 
+import com.hp.hpl.jena.graph.Triple;
 import com.hp.hpl.jena.rdf.model.Resource;
 
 /**
@@ -36,8 +38,6 @@ import com.hp.hpl.jena.rdf.model.Resource;
  * @since 9/16/14
  */
 public class LdpRdfContext extends NodeRdfContext {
-
-    private static final Logger LOGGER = getLogger(LdpRdfContext.class);
 
     /**
      * Default constructor.
@@ -48,16 +48,19 @@ public class LdpRdfContext extends NodeRdfContext {
     public LdpRdfContext(final FedoraResource resource,
                          final IdentifierConverter<Resource, FedoraResource> idTranslator) {
         super(resource, idTranslator);
+    }
 
-        concat(create(subject(), type.asNode(), RDF_SOURCE.asNode()));
+    @Override
+    public Stream<Triple> applyThrows(final Node unused) {
+        final Stream.Builder<Triple> triples = builder();
 
-        if (resource instanceof Container) {
-            concat(create(subject(), type.asNode(), CONTAINER.asNode()));
-
-            if (!resource.hasType(FEDORA_CONTAINER)) {
-                concat(create(subject(), type.asNode(), BASIC_CONTAINER.asNode()));
+        triples.add(create(topic(), type.asNode(), RDF_SOURCE.asNode()));
+        if (resource() instanceof Container) {
+            triples.add(create(topic(), type.asNode(), CONTAINER.asNode()));
+            if (!resource().hasType(FEDORA_CONTAINER)) {
+                triples.add(create(topic(), type.asNode(), BASIC_CONTAINER.asNode()));
             }
         }
-
+        return triples.build();
     }
 }

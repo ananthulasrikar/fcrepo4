@@ -20,7 +20,6 @@ import com.hp.hpl.jena.rdf.model.Resource;
 
 import org.fcrepo.kernel.models.NonRdfSourceDescription;
 import org.fcrepo.kernel.models.FedoraResource;
-import org.fcrepo.kernel.utils.UncheckedFunction;
 import org.fcrepo.kernel.utils.UncheckedPredicate;
 import org.fcrepo.kernel.identifiers.IdentifierConverter;
 import org.fcrepo.kernel.impl.rdf.converters.ValueConverter;
@@ -34,7 +33,6 @@ import javax.jcr.RepositoryException;
 import javax.jcr.Value;
 
 import java.util.Iterator;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -69,24 +67,24 @@ public class LdpContainerRdfContext extends NodeRdfContext {
      *
      * @param resource
      * @param idTranslator
-     * @throws javax.jcr.RepositoryException
      */
     public LdpContainerRdfContext(final FedoraResource resource,
-                                  final IdentifierConverter<Resource, FedoraResource> idTranslator)
-            throws RepositoryException {
+                                  final IdentifierConverter<Resource, FedoraResource> idTranslator) {
         super(resource, idTranslator);
-        final Iterator<Property> memberReferences = resource.getNode().getReferences(LDP_MEMBER_RESOURCE);
+
+    }
+
+    @Override
+    public Stream<Triple> applyThrows(final Node node) throws RepositoryException {
+        final Iterator<Property> memberReferences = node.getReferences(LDP_MEMBER_RESOURCE);
         final Stream<Property> properties = fromIterator(memberReferences).filter(isContainer);
-        concat(properties.flatMap(property2triples));
+        return properties.flatMap(uncheck(p -> memberRelations(nodeConverter.convert(p.getParent()))));
     }
 
     private static final Predicate<Property> isContainer = UncheckedPredicate.uncheck(property -> {
             final Node container = property.getParent();
             return container.isNodeType(LDP_DIRECT_CONTAINER) || container.isNodeType(LDP_INDIRECT_CONTAINER);
     });
-
-    private final Function<Property, Stream<Triple>> property2triples = uncheck(p -> memberRelations(nodeConverter
-            .convert(p.getParent())));
 
     /**
      * Get the member relations assert on the subject by the given node
@@ -118,19 +116,15 @@ public class LdpContainerRdfContext extends NodeRdfContext {
             insertedContainerProperty = MEMBER_SUBJECT.getURI();
         }
 
-        final Stream<FedoraResource> memberNodes = container.getChildren();
-        return memberNodes.flatMap(UncheckedFunction.uncheck(child -> {
-            final com.hp.hpl.jena.graph.Node childSubject;
-            if (child instanceof NonRdfSourceDescription) {
-                childSubject = translator().reverse()
-                        .convert(((NonRdfSourceDescription) child).getDescribedResource())
-                        .asNode();
-            } else {
-                childSubject = translator().reverse().convert(child).asNode();
-            }
+        return container.getChildren().flatMap(uncheck(child -> {
+
+            final FedoraResource childResource =
+                    child instanceof NonRdfSourceDescription ? ((NonRdfSourceDescription) child)
+                            .getDescribedResource() : child;
+            final com.hp.hpl.jena.graph.Node childSubject = translator().reverse().convert(childResource).asNode();
 
             if (insertedContainerProperty.equals(MEMBER_SUBJECT.getURI())) {
-                return Stream.of(create(subject(), memberRelation, childSubject));
+                return Stream.of(create(topic(), memberRelation, childSubject));
             }
             final String insertedContentProperty = getPropertyNameFromPredicate(resource().getNode(),
                     createResource(insertedContainerProperty), null);
@@ -140,8 +134,8 @@ public class LdpContainerRdfContext extends NodeRdfContext {
             }
 
             final Stream<Value> values = new PropertyValueStream(child.getProperty(insertedContentProperty));
-            return values.map(v -> create(subject(), memberRelation, new ValueConverter(session(),
-                    translator()).convert(v).asNode()));
+            return values.map(v -> new ValueConverter(session(), translator()).convert(v).asNode()).map(
+                    o -> create(topic(), memberRelation, o));
         }));
     }
 }
